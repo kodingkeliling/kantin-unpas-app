@@ -1,36 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# E-Kantin UNPAS
 
-## Getting Started
+Platform pemesanan makanan online untuk kantin Universitas Pasundan (UNPAS).
 
-First, run the development server:
+## Fitur
 
+### Untuk Pengguna
+- ✅ **Scan QR Code Lokasi**: Scan QR code di meja dosen atau mahasiswa untuk menentukan lokasi pengiriman pesanan (nama lokasi dan nomor meja)
+- ✅ **Daftar Kantin**: Lihat semua kantin yang tersedia di kampus
+- ✅ **Menu Kantin**: Setiap kantin memiliki menu sendiri
+- ✅ **Keranjang Belanja**: Tambahkan menu ke keranjang dan checkout
+- ✅ **Upload Bukti Bayar**: Upload bukti pembayaran saat checkout
+- ✅ **Kode Transaksi**: Dapatkan kode transaksi setelah berhasil pesan
+- ✅ **Riwayat Transaksi**: 
+  - Lihat semua riwayat transaksi dari localStorage
+  - Cari transaksi dengan kode transaksi
+
+### Untuk Toko/Admin
+- ✅ **Login Toko**: Setiap toko memiliki login sendiri
+- ✅ **Dashboard Toko**: Kelola menu kantin
+  - Tambah menu baru
+  - Edit menu
+  - Hapus menu
+  - Aktifkan/nonaktifkan menu
+
+## Teknologi
+
+- **Next.js 16** - Framework React
+- **TypeScript** - Type safety
+- **Tailwind CSS 4** - Styling
+- **LocalStorage** - Penyimpanan data client-side
+
+## Design
+
+Website menggunakan design minimalis dengan:
+- Warna dominan putih
+- Warna aksen dari logo UNPAS (biru #003366 dan emas #FFB800)
+- UI yang clean dan user-friendly
+
+## Cara Menjalankan
+
+1. Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Jalankan development server:
+```bash
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Buka browser di `http://localhost:3000`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Struktur Project
 
-## Learn More
+```
+e-kantin/
+├── app/                    # Next.js app directory
+│   ├── page.tsx           # Halaman utama
+│   ├── kantin/            # Halaman kantin
+│   ├── checkout/          # Halaman checkout
+│   ├── riwayat/           # Halaman riwayat transaksi
+│   └── toko/              # Halaman admin toko
+├── components/            # Komponen reusable
+├── lib/                   # Utilities dan helpers
+│   ├── storage.ts        # LocalStorage utilities
+│   ├── auth.ts           # Authentication untuk toko
+│   ├── data.ts           # Data mock kantin
+│   └── utils.ts          # Utility functions
+└── types/                # TypeScript types
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Login Toko
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Untuk login sebagai admin toko:
+- Pilih kantin dari dropdown
+- Password default: `admin123`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Google Drive Integration
 
-## Deploy on Vercel
+Aplikasi menggunakan Google Drive untuk menyimpan bukti pembayaran. User perlu menghubungkan akun Google mereka terlebih dahulu.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Lihat [GOOGLE_DRIVE_SETUP.md](./GOOGLE_DRIVE_SETUP.md) untuk setup lengkap.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Setup Google Sheets Integration
+
+**📋 Untuk detail lengkap struktur tabel dan field, lihat [SPREADSHEET_STRUCTURE.md](./SPREADSHEET_STRUCTURE.md)**
+
+### Quick Setup
+
+1. **Super Admin Spreadsheet**:
+   - Buat sheet "Tokos" dengan field: id, name, description, ownerId, password, spreadsheetUrl, createdAt
+   - Deploy Google Apps Script
+   - Copy URL ke `.env` sebagai `NEXT_PUBLIC_GOOGLE_SCRIPT_URL`
+
+2. **Spreadsheet Tiap Toko**:
+   - Buat sheet "Transactions" dengan field: id, code, kantinId, kantinName, items, total, paymentProof, status, createdAt
+   - Deploy Google Apps Script
+   - Masukkan URL saat membuat/edit toko di Super Admin Dashboard
+
+## Catatan
+
+- Data disimpan di Google Sheets sebagai primary storage
+- Data juga disimpan di localStorage sebagai backup/fallback
+- User harus memilih toko terlebih dahulu untuk melihat riwayat transaksi
+- Setiap toko memiliki spreadsheet sendiri untuk menyimpan data transaksinya
+
+## Build untuk Production
+
+```bash
+npm run build
+npm start
+```
