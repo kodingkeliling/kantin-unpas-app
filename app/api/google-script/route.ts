@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const sheet = searchParams.get('sheet') || 'AkunKantin';
-    const scriptUrl = searchParams.get('scriptUrl') || SUPER_ADMIN_SCRIPT_URL;
+    let scriptUrl = searchParams.get('scriptUrl') || SUPER_ADMIN_SCRIPT_URL;
     
     if (!scriptUrl) {
       return NextResponse.json(
@@ -15,9 +15,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Validate and clean scriptUrl
+    try {
+      // Remove any trailing slashes
+      scriptUrl = scriptUrl.trim().replace(/\/+$/, '');
+      // Validate URL format
+      new URL(scriptUrl);
+    } catch (urlError) {
+      return NextResponse.json(
+        { success: false, error: `Invalid Google Script URL: ${scriptUrl}` },
+        { status: 400 }
+      );
+    }
+
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(7);
-    const url = `${scriptUrl}?sheet=${sheet}&t=${timestamp}&r=${randomId}&_cb=${Date.now()}`;
+    const url = `${scriptUrl}?sheet=${encodeURIComponent(sheet)}&t=${timestamp}&r=${randomId}&_cb=${Date.now()}`;
 
     const response = await fetch(url, {
       method: 'GET',
@@ -63,9 +76,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const sheet = searchParams.get('sheet') || 'AkunKantin';
-    const scriptUrl = searchParams.get('scriptUrl') || SUPER_ADMIN_SCRIPT_URL;
     const body = await request.json();
+    
+    // Get scriptUrl from body first, then from query params, then from env
+    let scriptUrl = body.scriptUrl || searchParams.get('scriptUrl') || SUPER_ADMIN_SCRIPT_URL;
+    const sheet = body.sheet || searchParams.get('sheet') || 'AkunKantin';
     
     if (!scriptUrl) {
       return NextResponse.json(
@@ -74,13 +89,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate and clean scriptUrl
+    try {
+      // Remove any trailing slashes
+      scriptUrl = scriptUrl.trim().replace(/\/+$/, '');
+      // Validate URL format
+      new URL(scriptUrl);
+    } catch (urlError) {
+      return NextResponse.json(
+        { success: false, error: `Invalid Google Script URL: ${scriptUrl}` },
+        { status: 400 }
+      );
+    }
+
     // Email should already be in data object from the frontend
     // No need to add from env variable
-    const payloadWithEmail = { ...body };
+    // Remove scriptUrl and sheet from body before sending to Google Script
+    const { scriptUrl: _, sheet: __, ...payloadWithEmail } = body;
 
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(7);
-    const url = `${scriptUrl}?sheet=${sheet}&t=${timestamp}&r=${randomId}&_cb=${Date.now()}`;
+    const url = `${scriptUrl}?sheet=${encodeURIComponent(sheet)}&t=${timestamp}&r=${randomId}&_cb=${Date.now()}`;
 
     const response = await fetch(url, {
       method: 'POST',

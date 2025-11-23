@@ -7,6 +7,7 @@ import { storage } from '@/lib/storage';
 import { Transaction } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { showAlert } from '@/lib/swal';
+import { TableSkeleton } from '@/components/SkeletonLoader';
 
 function RiwayatContent() {
   const searchParams = useSearchParams();
@@ -67,7 +68,52 @@ function RiwayatContent() {
         const response = await fetch(`/api/transactions?scriptUrl=${encodeURIComponent(spreadsheetApiUrl)}`);
         const result = await response.json();
         if (result.success && result.data) {
-          setTransactions(result.data);
+          // Parse items and deliveryLocation from string to object if needed
+          const parsedTransactions = result.data.map((txn: any) => {
+            let items = txn.items;
+            let deliveryLocation = txn.deliveryLocation;
+            
+            // Parse items from string to array if needed
+            if (typeof items === 'string') {
+              try {
+                if (items.trim().startsWith('[') || items.trim().startsWith('{')) {
+                  items = JSON.parse(items);
+                } else {
+                  console.warn('Invalid items format:', items);
+                  items = [];
+                }
+              } catch (parseError) {
+                console.error('Error parsing items:', parseError, 'items value:', items);
+                items = [];
+              }
+            }
+            
+            // Parse deliveryLocation from string to object if needed
+            if (typeof deliveryLocation === 'string' && deliveryLocation.trim()) {
+              try {
+                if (deliveryLocation.trim().startsWith('{')) {
+                  deliveryLocation = JSON.parse(deliveryLocation);
+                } else {
+                  deliveryLocation = undefined;
+                }
+              } catch (parseError) {
+                console.error('Error parsing deliveryLocation:', parseError);
+                deliveryLocation = undefined;
+              }
+            }
+            
+            return {
+              ...txn,
+              items,
+              deliveryLocation,
+            };
+          });
+          
+          // Replace transactions for this kantin in localStorage
+          storage.transactions.replaceByKantinId(kantinId, parsedTransactions);
+          
+          // Update state
+          setTransactions(parsedTransactions);
         } else {
           // Fallback to localStorage
           const savedTransactions = storage.transactions.getAll();
@@ -104,22 +150,96 @@ function RiwayatContent() {
           const found = result.data.find((t: Transaction) => 
             t.code.toLowerCase() === code.toLowerCase() || t.id === code
           );
-          setSearchResult(found || null);
+          
+          if (found) {
+            // Parse items and deliveryLocation from string to object if needed
+            let items = found.items;
+            let deliveryLocation = found.deliveryLocation;
+            
+            // Parse items from string to array if needed
+            if (typeof items === 'string') {
+              try {
+                if (items.trim().startsWith('[') || items.trim().startsWith('{')) {
+                  items = JSON.parse(items);
+                } else {
+                  console.warn('Invalid items format:', items);
+                  items = [];
+                }
+              } catch (parseError) {
+                console.error('Error parsing items:', parseError, 'items value:', items);
+                items = [];
+              }
+            }
+            
+            // Ensure items is always an array
+            if (!Array.isArray(items)) {
+              items = [];
+            }
+            
+            // Parse deliveryLocation from string to object if needed
+            if (typeof deliveryLocation === 'string' && deliveryLocation.trim()) {
+              try {
+                if (deliveryLocation.trim().startsWith('{')) {
+                  deliveryLocation = JSON.parse(deliveryLocation);
+                } else {
+                  deliveryLocation = undefined;
+                }
+              } catch (parseError) {
+                console.error('Error parsing deliveryLocation:', parseError);
+                deliveryLocation = undefined;
+              }
+            }
+            
+            setSearchResult({
+              ...found,
+              items,
+              deliveryLocation,
+            });
+          } else {
+            setSearchResult(null);
+          }
         } else {
           // Fallback to localStorage
           const found = storage.transactions.findByCode(code);
-          setSearchResult(found || null);
+          if (found) {
+            // Ensure items is always an array
+            const normalizedFound = {
+              ...found,
+              items: Array.isArray(found.items) ? found.items : [],
+            };
+            setSearchResult(normalizedFound);
+          } else {
+            setSearchResult(null);
+          }
         }
       } else {
         // Fallback to localStorage
         const found = storage.transactions.findByCode(code);
-        setSearchResult(found || null);
+        if (found) {
+          // Ensure items is always an array
+          const normalizedFound = {
+            ...found,
+            items: Array.isArray(found.items) ? found.items : [],
+          };
+          setSearchResult(normalizedFound);
+        } else {
+          setSearchResult(null);
+        }
       }
     } catch (error) {
       console.error('Error searching transaction:', error);
       // Fallback to localStorage
       const found = storage.transactions.findByCode(code);
-      setSearchResult(found || null);
+      if (found) {
+        // Ensure items is always an array
+        const normalizedFound = {
+          ...found,
+          items: Array.isArray(found.items) ? found.items : [],
+        };
+        setSearchResult(normalizedFound);
+      } else {
+        setSearchResult(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -144,8 +264,15 @@ function RiwayatContent() {
       searchTransactionInSheet(selectedKantinId, searchCode);
     } else {
       const found = storage.transactions.findByCode(searchCode);
-      setSearchResult(found || null);
-      if (!found) {
+      if (found) {
+        // Ensure items is always an array
+        const normalizedFound = {
+          ...found,
+          items: Array.isArray(found.items) ? found.items : [],
+        };
+        setSearchResult(normalizedFound);
+      } else {
+        setSearchResult(null);
         showAlert.error('Kode transaksi tidak ditemukan');
       }
     }
@@ -265,20 +392,27 @@ function RiwayatContent() {
                       </span>
                     </div>
                     <div className="space-y-2 text-sm">
+                      {searchResult.customerName && (
+                        <p><span className="font-medium">Nama Pemesan:</span> {searchResult.customerName}</p>
+                      )}
                       <p><span className="font-medium">Kantin:</span> {searchResult.kantinName}</p>
                       <p><span className="font-medium">Tanggal:</span> {formatDate(searchResult.createdAt)}</p>
                       <p><span className="font-medium">Total:</span> {formatCurrency(searchResult.total)}</p>
                       <div className="mt-3">
                         <p className="font-medium mb-2">Items:</p>
-                        <ul className="list-disc list-inside space-y-1">
-                          {searchResult.items.map((item, idx) => (
-                            <li key={idx}>
-                              {item.menuName} - {item.quantity}x {formatCurrency(item.price)}
-                            </li>
-                          ))}
-                        </ul>
+                        {Array.isArray(searchResult.items) && searchResult.items.length > 0 ? (
+                          <ul className="list-disc list-inside space-y-1">
+                            {searchResult.items.map((item, idx) => (
+                              <li key={idx}>
+                                {item.menuName} - {item.quantity}x {formatCurrency(item.price)}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-gray-500">Tidak ada item</p>
+                        )}
                       </div>
-                      {searchResult.deliveryLocation && (
+                      {searchResult.deliveryLocation ? (
                         <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded">
                           <div className="flex items-start gap-2">
                             <svg className="w-4 h-4 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -289,6 +423,18 @@ function RiwayatContent() {
                               <p className="text-xs font-medium text-blue-800">Lokasi Pengiriman</p>
                               <p className="text-sm text-gray-800">{searchResult.deliveryLocation.name}</p>
                               <p className="text-xs text-gray-600">{searchResult.deliveryLocation.tableNumber}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded">
+                          <div className="flex items-start gap-2">
+                            <svg className="w-4 h-4 text-green-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                            </svg>
+                            <div>
+                              <p className="text-xs font-medium text-green-800">Take Away</p>
+                              <p className="text-sm text-gray-800">Pesanan diambil langsung di lokasi kantin</p>
                             </div>
                           </div>
                         </div>
@@ -339,6 +485,9 @@ function RiwayatContent() {
                           </span>
                         </div>
                         <div className="grid md:grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
+                          {transaction.customerName && (
+                            <p><span className="font-medium">Nama Pemesan:</span> {transaction.customerName}</p>
+                          )}
                           <p><span className="font-medium">Kantin:</span> {transaction.kantinName}</p>
                           <p><span className="font-medium">Tanggal:</span> {formatDate(transaction.createdAt)}</p>
                         </div>
@@ -350,7 +499,7 @@ function RiwayatContent() {
                             {formatCurrency(transaction.total)}
                           </p>
                         </div>
-                        {transaction.deliveryLocation && (
+                        {transaction.deliveryLocation ? (
                           <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded">
                             <div className="flex items-start gap-2">
                               <svg className="w-4 h-4 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -361,6 +510,18 @@ function RiwayatContent() {
                                 <p className="text-xs font-medium text-blue-800">Lokasi Pengiriman</p>
                                 <p className="text-sm text-gray-800">{transaction.deliveryLocation.name}</p>
                                 <p className="text-xs text-gray-600">{transaction.deliveryLocation.tableNumber}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded">
+                            <div className="flex items-start gap-2">
+                              <svg className="w-4 h-4 text-green-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                              </svg>
+                              <div>
+                                <p className="text-xs font-medium text-green-800">Take Away</p>
+                                <p className="text-sm text-gray-800">Pesanan diambil langsung di lokasi kantin</p>
                               </div>
                             </div>
                           </div>

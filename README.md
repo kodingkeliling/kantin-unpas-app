@@ -37,6 +37,32 @@ Website menggunakan design minimalis dengan:
 - Warna aksen dari logo UNPAS (biru #003366 dan emas #FFB800)
 - UI yang clean dan user-friendly
 
+## Environment Variables
+
+Buat file `.env.local` di root project dengan variabel berikut:
+
+```env
+# Google Apps Script URL untuk Super Admin Spreadsheet
+NEXT_PUBLIC_GOOGLE_SCRIPT_URL=https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec
+
+# Google OAuth untuk Google Drive
+NEXT_PUBLIC_OAUTH_REDIRECT_URL=http://localhost:3000/auth/google/callback
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id
+NEXT_PUBLIC_GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# JWT Secret untuk authentication
+JWT_SECRET=your-secret-key-here
+
+# Super Admin Credentials
+NEXT_PUBLIC_ADMIN_EMAIL=superadmin
+NEXT_PUBLIC_ADMIN_PASSWORD=your-secure-password-here
+```
+
+**Catatan Penting:**
+- `NEXT_PUBLIC_ADMIN_EMAIL` dan `NEXT_PUBLIC_ADMIN_PASSWORD` digunakan untuk login Super Admin
+- Jangan commit file `.env.local` ke repository (sudah ada di `.gitignore`)
+- Gunakan password yang kuat untuk production
+
 ## Cara Menjalankan
 
 1. Install dependencies:
@@ -44,7 +70,9 @@ Website menggunakan design minimalis dengan:
 npm install
 ```
 
-2. Jalankan development server:
+2. Buat file `.env.local` dan isi dengan variabel environment yang diperlukan (lihat bagian Environment Variables di atas)
+
+3. Jalankan development server:
 ```bash
 npm run dev
 ```

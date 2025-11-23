@@ -5,6 +5,7 @@ export interface Menu {
   price: number;
   image?: string;
   available: boolean;
+  quantity?: number; // Stock/jumlah tersedia
 }
 
 export interface Kantin {
@@ -34,6 +35,7 @@ export interface Transaction {
   code: string;
   kantinId: string;
   kantinName: string;
+  customerName?: string;
   items: CartItem[];
   total: number;
   paymentProof?: string;

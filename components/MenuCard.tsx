@@ -4,7 +4,6 @@ import { Menu } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import { useState } from 'react';
 import { storage } from '@/lib/storage';
-import { showAlert } from '@/lib/swal';
 
 interface MenuCardProps {
   menu: Menu;
@@ -36,7 +35,6 @@ export default function MenuCard({ menu, kantinId, onAddToCart }: MenuCardProps)
     storage.cart.save(cart);
     if (onAddToCart) onAddToCart();
     
-    showAlert.success(`${menu.name} ditambahkan ke keranjang!`, 'Berhasil');
     setQuantity(1);
   };
 

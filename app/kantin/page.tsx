@@ -1,13 +1,56 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import KantinCard from '@/components/KantinCard';
-import { mockKantins } from '@/lib/data';
-import { Kantin } from '@/types';
+import { getKantinsFromSuperAdminSheet } from '@/lib/googleScript';
+import { kantinStorage, KantinAccount } from '@/lib/kantin';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function KantinPage() {
-  const [kantins] = useState<Kantin[]>(mockKantins);
+  const [kantins, setKantins] = useState<KantinAccount[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadKantins = async () => {
+      setIsLoading(true);
+      
+      // Load from localStorage first (for quick display)
+      const allKantins = kantinStorage.getAll();
+      // Filter only open kantins for public display
+      const openKantins = allKantins.filter(k => k.isOpen !== false);
+      setKantins(openKantins);
+      setIsLoading(false);
+
+      // Then try to load from Google Sheets
+      try {
+        const response = await getKantinsFromSuperAdminSheet();
+        if (response.success && response.data?.data) {
+          const kantinsFromSheet = response.data.data as KantinAccount[];
+          
+          // Log kantins data for debugging
+          console.log('Kantins loaded from sheet:', kantinsFromSheet);
+          kantinsFromSheet.forEach(k => {
+            console.log(`Kantin: ${k.name}, coverImage: ${k.coverImage}`);
+          });
+          
+          // Replace all data in localStorage with fresh data from API
+          kantinStorage.replaceAll(kantinsFromSheet);
+          
+          // Filter only open kantins for public display
+          const openKantinsFromSheet = kantinsFromSheet.filter(k => k.isOpen !== false);
+          setKantins(openKantinsFromSheet);
+        }
+      } catch (error) {
+        console.error('Error loading kantins from sheet:', error);
+        // Continue with localStorage data
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadKantins();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -18,7 +61,11 @@ export default function KantinPage() {
           <p className="text-sm sm:text-base text-gray-600">Pilih kantin untuk melihat menu yang tersedia</p>
         </div>
 
-        {kantins.length === 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <LoadingSpinner size="lg" />
+          </div>
+        ) : kantins.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500">Tidak ada kantin tersedia saat ini</p>
           </div>

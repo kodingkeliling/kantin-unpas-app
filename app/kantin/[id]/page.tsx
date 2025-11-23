@@ -4,30 +4,89 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import MenuCard from '@/components/MenuCard';
-import { getKantinById } from '@/lib/data';
-import { Kantin, CartItem } from '@/types';
+import { kantinStorage, KantinAccount } from '@/lib/kantin';
+import { Menu, CartItem } from '@/types';
 import { storage } from '@/lib/storage';
 import { formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import Image from 'next/image';
 
 export default function KantinDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const [kantin, setKantin] = useState<Kantin | null>(null);
+  const [kantin, setKantin] = useState<KantinAccount | null>(null);
+  const [menus, setMenus] = useState<Menu[]>([]);
+  const [isLoadingKantin, setIsLoadingKantin] = useState(true);
+  const [isLoadingMenus, setIsLoadingMenus] = useState(true);
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [cartCount, setCartCount] = useState(0);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
-    const kantinData = getKantinById(params.id as string);
-    if (!kantinData) {
-      router.push('/kantin');
-      return;
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setKantin(kantinData);
-    localStorage.setItem('current_kantin_id', kantinData.id);
+    const loadKantin = () => {
+      const kantinId = params.id as string;
+      const kantinData = kantinStorage.findById(kantinId);
+      
+      if (!kantinData) {
+        router.push('/kantin');
+        return;
+      }
+      
+      setKantin(kantinData);
+      localStorage.setItem('current_kantin_id', kantinData.id);
+      setIsLoadingKantin(false);
+      
+      // Load menus from kantin's spreadsheet
+      if (kantinData.spreadsheetApiUrl) {
+        loadMenus(kantinData.spreadsheetApiUrl);
+      } else {
+        setIsLoadingMenus(false);
+      }
+    };
+
+    loadKantin();
   }, [params.id, router]);
+
+  const loadMenus = async (spreadsheetApiUrl: string) => {
+    setIsLoadingMenus(true);
+    try {
+      const response = await fetch(`/api/google-script?sheet=Menus&scriptUrl=${encodeURIComponent(spreadsheetApiUrl)}`);
+      const result = await response.json();
+      
+      // Handle both response formats: {success: true, data: [...]} or {data: [...]}
+      let menuData: any[] = [];
+      
+      if (result.data && Array.isArray(result.data)) {
+        menuData = result.data;
+      } else if (Array.isArray(result)) {
+        menuData = result;
+      } else if (result.success !== false && result.data) {
+        menuData = Array.isArray(result.data) ? result.data : [];
+      }
+      
+      if (menuData.length > 0) {
+        // Parse data from spreadsheet
+        const parsedMenus = menuData.map((menu: any) => ({
+          id: menu.id || `menu-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+          name: menu.name || '',
+          description: menu.description || '',
+          price: typeof menu.price === 'string' ? parseInt(menu.price) : (menu.price || 0),
+          available: menu.available === true || menu.available === 'true' || menu.available === 'TRUE',
+          image: menu.image || '',
+          quantity: menu.quantity ? (typeof menu.quantity === 'string' ? parseInt(menu.quantity) : menu.quantity) : undefined,
+        }));
+        setMenus(parsedMenus);
+      } else {
+        setMenus([]);
+      }
+    } catch (error) {
+      console.error('Error loading menus:', error);
+      setMenus([]);
+    } finally {
+      setIsLoadingMenus(false);
+    }
+  };
 
   useEffect(() => {
     const savedCart = storage.cart.get();
@@ -47,12 +106,25 @@ export default function KantinDetailPage() {
 
   const total = Object.values(cart).reduce((sum, item) => sum + item.price * item.quantity, 0);
 
+  if (isLoadingKantin) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <main className="container mx-auto px-4 py-8 pb-24 md:pb-8">
+          <div className="flex justify-center items-center py-12">
+            <LoadingSpinner size="lg" />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (!kantin) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />
-        <main className="container mx-auto px-4 py-8">
-          <p>Memuat...</p>
+        <main className="container mx-auto px-4 py-8 pb-24 md:pb-8">
+          <p className="text-gray-500">Kantin tidak ditemukan</p>
         </main>
       </div>
     );
@@ -72,20 +144,50 @@ export default function KantinDetailPage() {
             </svg>
             Kembali ke Daftar Kantin
           </Link>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">{kantin.name}</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{kantin.name}</h1>
+            {kantin.isOpen !== false && (
+              <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
+                Buka
+              </span>
+            )}
+            {kantin.isOpen === false && (
+              <span className="px-3 py-1 bg-red-100 text-red-800 text-sm font-medium rounded-full">
+                Tutup
+              </span>
+            )}
+          </div>
           {kantin.description && (
-            <p className="text-gray-600">{kantin.description}</p>
+            <p className="text-gray-600 mb-4">{kantin.description}</p>
+          )}
+          {kantin.coverImage && (
+            <div className="mb-4 rounded-lg overflow-hidden relative w-full h-64">
+              <Image 
+                src={kantin.coverImage} 
+                alt={kantin.name} 
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 60vw"
+                onError={(e) => {
+                  console.error('Error loading cover image:', kantin.coverImage);
+                }}
+              />
+            </div>
           )}
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6 pb-24 lg:pb-0">
           <div className="lg:col-span-2 order-2 lg:order-1">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Menu</h2>
-            {kantin.menus.length === 0 ? (
+            {isLoadingMenus ? (
+              <div className="flex justify-center items-center py-12">
+                <LoadingSpinner size="lg" />
+              </div>
+            ) : menus.length === 0 ? (
               <p className="text-gray-500">Tidak ada menu tersedia</p>
             ) : (
               <div className="space-y-4">
-                {kantin.menus.map((menu) => (
+                {menus.map((menu) => (
                   <MenuCard
                     key={menu.id}
                     menu={menu}
@@ -125,12 +227,12 @@ export default function KantinDetailPage() {
                       <span className="text-lg font-semibold text-gray-800">Total</span>
                       <span className="text-xl font-bold text-unpas-blue">{formatCurrency(total)}</span>
                     </div>
-                    <Link
-                      href="/checkout"
-                      className="block w-full bg-unpas-blue text-white text-center px-4 py-3 rounded-lg font-medium hover:bg-unpas-blue/90 transition-colors"
-                    >
-                      Checkout ({cartCount} item)
-                    </Link>
+                      <Link
+                        href={`/kantin/${kantin.id}/checkout`}
+                        className="block w-full bg-unpas-blue text-white text-center px-4 py-3 rounded-lg font-medium hover:bg-unpas-blue/90 transition-colors"
+                      >
+                        Checkout ({cartCount} item)
+                      </Link>
                   </div>
                 </>
               )}
@@ -212,7 +314,7 @@ export default function KantinDetailPage() {
                     <span className="text-lg font-bold text-unpas-blue">{formatCurrency(total)}</span>
                   </div>
                   <Link
-                    href="/checkout"
+                    href={`/kantin/${kantin.id}/checkout`}
                     onClick={() => setIsCartOpen(false)}
                     className="block w-full bg-unpas-blue text-white text-center px-4 py-3 rounded-lg font-medium hover:bg-unpas-blue/90 transition-colors"
                   >

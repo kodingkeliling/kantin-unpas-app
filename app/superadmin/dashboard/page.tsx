@@ -4,22 +4,25 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import { auth } from '@/lib/auth';
-import { kantinStorage, KantinAccount } from '@/lib/kantin';
+import { kantinStorage, KantinAccount, OperatingHours } from '@/lib/kantin';
 import { saveKantinToSuperAdminSheet, updateKantinInSuperAdminSheet, getKantinsFromSuperAdminSheet } from '@/lib/googleScript';
 import KantinFormModal from '@/components/KantinFormModal';
 import { showAlert } from '@/lib/swal';
 import { LuTrash2 } from 'react-icons/lu';
 import { TbEdit } from 'react-icons/tb';
+import { TableSkeleton } from '@/components/SkeletonLoader';
 
 export default function SuperAdminDashboardPage() {
   const router = useRouter();
   const [authData] = useState(auth.getAuth());
   const [kantins, setKantins] = useState<KantinAccount[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingKantin, setEditingKantin] = useState<KantinAccount | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadKantins = async () => {
+    setIsLoading(true);
     // Load from localStorage first (for quick display)
     const allKantins = kantinStorage.getAll();
     // Sort by createdAt descending (newest first)
@@ -29,19 +32,19 @@ export default function SuperAdminDashboardPage() {
       return dateB - dateA; // Descending order (newest first)
     });
     setKantins(sortedKantins);
+    setIsLoading(false);
 
     // Then try to load from Google Sheets
     try {
       const response = await getKantinsFromSuperAdminSheet();
       if (response.success && response.data?.data) {
         const kantinsFromSheet = response.data.data as KantinAccount[];
-        // Update localStorage with data from sheet
-        kantinsFromSheet.forEach((kantin) => {
-          kantinStorage.save(kantin);
-        });
-        // Sort again after loading from sheet
-        const updatedKantins = kantinStorage.getAll();
-        const sortedUpdatedKantins = [...updatedKantins].sort((a, b) => {
+        
+        // Replace all data in localStorage with fresh data from API
+        kantinStorage.replaceAll(kantinsFromSheet);
+        
+        // Sort and update state with fresh data from API
+        const sortedUpdatedKantins = [...kantinsFromSheet].sort((a, b) => {
           const dateA = new Date(a.createdAt).getTime();
           const dateB = new Date(b.createdAt).getTime();
           return dateB - dateA; // Descending order (newest first)
@@ -67,11 +70,6 @@ export default function SuperAdminDashboardPage() {
     loadKantins();
   }, [authData, router]);
 
-  const handleLogout = () => {
-    auth.logout();
-    router.push('/login');
-  };
-
   const handleSubmitKantin = async (data: {
     name: string;
     description: string;
@@ -82,6 +80,8 @@ export default function SuperAdminDashboardPage() {
     whatsapp: string;
     coverImage: string;
     qrisImage: string;
+    isOpen: boolean;
+    operatingHours: OperatingHours[];
   }) => {
     setIsSubmitting(true);
     try {
@@ -98,6 +98,8 @@ export default function SuperAdminDashboardPage() {
         whatsapp: data.whatsapp,
         coverImage: data.coverImage,
         qrisImage: data.qrisImage,
+        isOpen: data.isOpen,
+        operatingHours: data.operatingHours,
       };
 
       // Save to localStorage first
@@ -140,6 +142,8 @@ export default function SuperAdminDashboardPage() {
         whatsapp: data.whatsapp,
         coverImage: data.coverImage,
         qrisImage: data.qrisImage,
+        isOpen: data.isOpen,
+        operatingHours: data.operatingHours,
         createdAt: new Date().toISOString(),
       };
 
@@ -196,37 +200,18 @@ export default function SuperAdminDashboardPage() {
     showAlert.success('Akun kantin berhasil dihapus!');
   };
 
-  if (!authData || !auth.isSuperAdmin()) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        <main className="container mx-auto px-4 py-8 pb-24 md:pb-8">
-          <p>Memuat...</p>
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
+      <Header isAdmin={true} />
       <main className="container mx-auto px-4 py-8 pb-24 md:pb-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Super Admin Dashboard</h1>
-            <p className="text-gray-600">Kelola akun kantin</p>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 transition-colors cursor-pointer"
-          >
-            Logout
-          </button>
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">Super Admin Dashboard</h1>
+          <p className="text-gray-600">Kelola akun kantin</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800">Daftar Kantin</h2>
+        <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 md:p-6 mb-6">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-800">Daftar Kantin</h2>
             <button
               onClick={() => {
                 if (showAddForm) {
@@ -234,7 +219,7 @@ export default function SuperAdminDashboardPage() {
                 }
                 setShowAddForm(!showAddForm);
               }}
-              className="bg-unpas-gold text-white px-4 py-2 rounded-lg font-medium hover:bg-unpas-gold/90 transition-colors cursor-pointer"
+              className="bg-unpas-gold text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-sm sm:text-base font-medium hover:bg-unpas-gold/90 transition-colors cursor-pointer"
             >
               + Buat Akun Kantin
             </button>
@@ -251,29 +236,31 @@ export default function SuperAdminDashboardPage() {
             isSubmitting={isSubmitting}
           />
 
-          {kantins.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Belum ada akun kantin</p>
+          {isLoading ? (
+            <TableSkeleton rows={5} cols={6} />
+          ) : kantins.length === 0 ? (
+            <p className="text-gray-500 text-center py-4 sm:py-8">Belum ada akun kantin</p>
           ) : (
-            <div className="relative overflow-x-auto bg-white shadow-sm rounded-lg border border-gray-200">
-              <table className="w-full text-sm text-left text-gray-700">
+            <div className="relative overflow-x-auto bg-white shadow-sm rounded-lg border border-gray-200 -mx-3 sm:mx-0">
+              <table className="w-full text-xs sm:text-sm text-left text-gray-700">
                 <thead className="text-sm text-gray-700 bg-gray-100 border-b border-gray-200">
                   <tr>
-                    <th scope="col" className="px-6 py-3 font-medium">
+                    <th scope="col" className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 font-medium">
                       Nama Kantin
                     </th>
-                    <th scope="col" className="px-6 py-3 font-medium">
+                    <th scope="col" className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 font-medium">
                       Deskripsi
                     </th>
-                    <th scope="col" className="px-6 py-3 font-medium">
+                    <th scope="col" className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 font-medium">
                       Email
                     </th>
-                    <th scope="col" className="px-6 py-3 font-medium">
+                    <th scope="col" className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 font-medium">
                       Spreadsheet
                     </th>
-                    <th scope="col" className="px-6 py-3 font-medium">
+                    <th scope="col" className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 font-medium">
                       Tanggal Dibuat
                     </th>
-                    <th scope="col" className="px-6 py-3 font-medium">
+                    <th scope="col" className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 font-medium">
                       Aksi
                     </th>
                   </tr>
@@ -286,18 +273,18 @@ export default function SuperAdminDashboardPage() {
                         index === kantins.length - 1 ? '' : 'border-b'
                       }`}
                     >
-                      <th scope="row" className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
+                      <th scope="row" className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 font-medium text-gray-900 whitespace-nowrap">
                         {kantin.name}
                       </th>
-                      <td className="px-6 py-4 text-gray-600 max-w-xs">
+                      <td className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 text-gray-600 max-w-xs">
                         <div className="truncate" title={kantin.description || '-'}>
                           {kantin.description || '-'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
+                      <td className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 text-gray-600">
                         {kantin.email || '-'}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4">
                         {kantin.spreadsheetUrl ? (
                           <a
                             href={kantin.spreadsheetUrl}
@@ -314,14 +301,14 @@ export default function SuperAdminDashboardPage() {
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
+                      <td className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 text-gray-600">
                         {new Date(kantin.createdAt).toLocaleDateString('id-ID', {
                           day: 'numeric',
                           month: 'short',
                           year: 'numeric',
                         })}
                       </td>
-                      <td className="flex items-center px-6 py-4 gap-3">
+                      <td className="flex items-center px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 gap-2 sm:gap-3">
                         <button
                           onClick={() => handleEditKantin(kantin)}
                           className="p-2 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors cursor-pointer"

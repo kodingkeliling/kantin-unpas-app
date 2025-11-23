@@ -4,9 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
-import { mockKantins } from '@/lib/data';
-import { kantinStorage } from '@/lib/kantin';
 import Header from '@/components/Header';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function KantinLoginPage() {
   const router = useRouter();
@@ -15,56 +14,100 @@ export default function KantinLoginPage() {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleKantinLogin = (e: React.FormEvent) => {
+  const handleKantinLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
     if (!email || !password) {
       setError('Harap isi email dan password');
+      setIsLoading(false);
       return;
     }
 
-    const allKantins = kantinStorage.getAll();
-    const kantin = allKantins.find((k) => k.email?.toLowerCase() === email.toLowerCase());
+    try {
+      // Hit API route (server-side, password tidak terlihat di network browser)
+      const response = await fetch('/api/auth/kantin/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (!kantin) {
-      setError('Email tidak ditemukan');
-      return;
+      const result = await response.json();
+
+      if (!result.success) {
+        setError(result.error || 'Gagal login. Silakan coba lagi.');
+        setIsLoading(false);
+        return;
+      }
+
+      const kantin = result.data;
+      const token = result.token;
+
+      if (!token) {
+        setError('Token tidak diterima dari server');
+        setIsLoading(false);
+        return;
+      }
+
+      auth.loginKantin({
+        kantinId: kantin.id,
+        kantinName: kantin.name,
+        ownerId: kantin.ownerId,
+        role: 'kantin',
+        ...kantin, // Include all other fields from API
+      }, token);
+
+      router.push('/kantin/dashboard');
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('Terjadi kesalahan saat login. Silakan coba lagi.');
+      setIsLoading(false);
     }
-
-    if (password !== kantin.password) {
-      setError('Password salah');
-      return;
-    }
-
-    auth.loginKantin({
-      kantinId: kantin.id,
-      kantinName: kantin.name,
-      ownerId: kantin.ownerId,
-      role: 'kantin',
-    });
-
-    router.push('/kantin/toko/dashboard');
   };
 
-  const handleSuperAdminLogin = (e: React.FormEvent) => {
+  const handleSuperAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
     if (!username || !password) {
       setError('Harap isi semua field');
+      setIsLoading(false);
       return;
     }
 
-    if (username === 'superadmin' && password === 'superadmin123') {
+    try {
+      // Hit API route (server-side, password tidak terlihat di network browser)
+      const response = await fetch('/api/auth/superadmin/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        setError(result.error || 'Username atau password salah');
+        setIsLoading(false);
+        return;
+      }
+
       auth.loginSuperAdmin({
         role: 'superadmin',
-        username: 'superadmin',
+        username: result.data.username,
       });
       router.push('/superadmin/dashboard');
-    } else {
-      setError('Username atau password salah');
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('Terjadi kesalahan saat login. Silakan coba lagi.');
+      setIsLoading(false);
     }
   };
 
@@ -138,9 +181,14 @@ export default function KantinLoginPage() {
 
                 <button
                   type="submit"
-                  className="w-full bg-unpas-blue text-white px-4 py-3 rounded-lg font-medium hover:bg-unpas-blue/90 transition-colors min-h-[44px] text-sm sm:text-base"
+                  disabled={isLoading}
+                  className="w-full bg-unpas-blue text-white px-4 py-3 rounded-lg font-medium hover:bg-unpas-blue/90 transition-colors min-h-[44px] text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
-                  Masuk sebagai Kantin
+                  {isLoading ? (
+                    <LoadingSpinner size="sm" className="text-white" />
+                  ) : (
+                    'Masuk sebagai Kantin'
+                  )}
                 </button>
               </form>
             ) : (
@@ -168,10 +216,9 @@ export default function KantinLoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Masukkan password"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-unpas-blue"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-unpas-blue text-sm sm:text-base min-h-[44px]"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">Username: superadmin, Password: superadmin123</p>
                 </div>
 
                 {error && (
@@ -182,9 +229,14 @@ export default function KantinLoginPage() {
 
                 <button
                   type="submit"
-                  className="w-full bg-unpas-gold text-white px-4 py-3 rounded-lg font-medium hover:bg-unpas-gold/90 transition-colors min-h-[44px] text-sm sm:text-base"
+                  disabled={isLoading}
+                  className="w-full bg-unpas-gold text-white px-4 py-3 rounded-lg font-medium hover:bg-unpas-gold/90 transition-colors min-h-[44px] text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
-                  Masuk sebagai Super Admin
+                  {isLoading ? (
+                    <LoadingSpinner size="sm" className="text-white" />
+                  ) : (
+                    'Masuk sebagai Super Admin'
+                  )}
                 </button>
               </form>
             )}

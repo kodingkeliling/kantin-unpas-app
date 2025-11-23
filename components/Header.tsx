@@ -2,10 +2,22 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { IoIosLogOut } from 'react-icons/io';
+import { auth } from '@/lib/auth';
 
-export default function Header() {
+interface HeaderProps {
+  isAdmin?: boolean;
+}
+
+export default function Header({ isAdmin = false }: HeaderProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    auth.logout();
+    router.push('/login');
+  };
 
   return (
     <>
@@ -24,43 +36,54 @@ export default function Header() {
               </div>
               <span className="text-base sm:text-xl font-bold text-unpas-blue">E-Kantin UNPAS</span>
             </Link>
-            <nav className="flex items-center gap-4">
-              <Link
-                href="/"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  pathname === '/'
-                    ? 'bg-unpas-blue text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
+            {isAdmin ? (
+              <button
+                onClick={handleLogout}
+                className="bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 transition-colors cursor-pointer flex items-center gap-2"
               >
-                Beranda
-              </Link>
-              <Link
-                href="/kantin"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  pathname === '/kantin'
-                    ? 'bg-unpas-blue text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                Kantin
-              </Link>
-              <Link
-                href="/riwayat"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  pathname === '/riwayat'
-                    ? 'bg-unpas-blue text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                Riwayat
-              </Link>
-            </nav>
+                <IoIosLogOut className="w-5 h-5" />
+                <span>Logout</span>
+              </button>
+            ) : (
+              <nav className="flex items-center gap-4">
+                <Link
+                  href="/"
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    pathname === '/'
+                      ? 'bg-unpas-blue text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  Beranda
+                </Link>
+                <Link
+                  href="/kantin"
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    pathname === '/kantin'
+                      ? 'bg-unpas-blue text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  Kantin
+                </Link>
+                <Link
+                  href="/riwayat"
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    pathname === '/riwayat'
+                      ? 'bg-unpas-blue text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  Riwayat
+                </Link>
+              </nav>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Mobile Bottom Navigation */}
+      {/* Mobile Bottom Navigation - Hidden for Admin */}
+      {!isAdmin && (
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-90 bg-white border-t border-gray-200 shadow-lg">
         <div className="flex items-center justify-around h-16">
 
@@ -129,9 +152,36 @@ export default function Header() {
           </Link>
         </div>
       </nav>
+      )}
 
-      {/* Spacer for mobile bottom nav */}
-      <div className="md:hidden h-16"></div>
+      {/* Mobile Header for Admin */}
+      {isAdmin && (
+        <header className="md:hidden sticky top-0 z-90 bg-white border-b border-gray-200 shadow-sm">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center justify-between">
+              <Link href="/" className="flex items-center gap-2">
+                <div className="relative w-8 h-8">
+                  <Image
+                    src="https://www.unpas.ac.id/wp-content/uploads/2016/10/Logo-Unpas.png"
+                    alt="UNPAS Logo"
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+                <span className="text-base font-bold text-unpas-blue">E-Kantin</span>
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="bg-red-500 text-white px-3 py-2 rounded-lg font-medium hover:bg-red-600 transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <IoIosLogOut className="w-4 h-4" />
+                <span className="text-sm">Logout</span>
+              </button>
+            </div>
+          </div>
+        </header>
+      )}
+
     </>
   );
 }

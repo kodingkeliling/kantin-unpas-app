@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await saveTransactionToSheet(scriptUrl, transaction);
+    const result = await saveTransactionToSheet(scriptUrl, transaction, true); // true = server-side
 
     if (!result.success) {
       return NextResponse.json(
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const result = await getTransactionsFromSheet(scriptUrl);
+    const result = await getTransactionsFromSheet(scriptUrl, true); // true = server-side
 
     if (!result.success) {
       return NextResponse.json(

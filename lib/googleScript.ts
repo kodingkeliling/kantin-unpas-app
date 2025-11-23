@@ -132,15 +132,157 @@ export async function fetchFromGoogleScript<T>(
   }
 }
 
-export async function saveTransactionToSheet(scriptUrl: string, transaction: any) {
-  return fetchFromGoogleScript(scriptUrl, 'Transactions', 'POST', {
+export async function saveTransactionToSheet(scriptUrl: string, transaction: any, isServerSide = false) {
+  // If called from server-side, use direct fetch to Google Script
+  if (isServerSide) {
+    try {
+      if (!scriptUrl) {
+        return {
+          success: false,
+          error: 'Google Script URL is not configured'
+        };
+      }
+
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substring(7);
+      const url = `${scriptUrl}?sheet=${encodeURIComponent('Pesanan')}&t=${timestamp}&r=${randomId}&_cb=${Date.now()}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'create',
+          data: transaction
+        }),
+        redirect: 'follow',
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        return {
+          success: false,
+          error: `HTTP ${response.status}: ${response.statusText}${errorText ? ' - ' + errorText.substring(0, 100) : ''}`
+        };
+      }
+
+      const text = await response.text();
+      
+      // Check if response is HTML (redirect page)
+      if (text.trim().startsWith('<') || text.includes('<HTML>') || text.includes('<!DOCTYPE')) {
+        return {
+          success: false,
+          error: 'Google Script returned HTML instead of JSON. Please check the script deployment settings.'
+        };
+      }
+
+      const result = JSON.parse(text);
+      
+      if (result.error) {
+        return {
+          success: false,
+          error: result.error
+        };
+      }
+
+      if (result.success === true) {
+        return {
+          success: true,
+          data: result
+        };
+      }
+
+      return {
+        success: false,
+        error: 'Invalid response format from Google Script'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  // Client-side: use API route proxy
+  return fetchFromGoogleScript(scriptUrl, 'Pesanan', 'POST', {
     action: 'create',
     data: transaction
   });
 }
 
-export async function getTransactionsFromSheet(scriptUrl: string) {
-  return fetchFromGoogleScript(scriptUrl, 'Transactions', 'GET');
+export async function getTransactionsFromSheet(scriptUrl: string, isServerSide = false) {
+  // If called from server-side, use direct fetch to Google Script
+  if (isServerSide) {
+    try {
+      if (!scriptUrl) {
+        return {
+          success: false,
+          error: 'Google Script URL is not configured'
+        };
+      }
+
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substring(7);
+      const url = `${scriptUrl}?sheet=${encodeURIComponent('Pesanan')}&t=${timestamp}&r=${randomId}&_cb=${Date.now()}`;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        redirect: 'follow',
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        return {
+          success: false,
+          error: `HTTP ${response.status}: ${response.statusText}${errorText ? ' - ' + errorText.substring(0, 100) : ''}`
+        };
+      }
+
+      const text = await response.text();
+      
+      // Check if response is HTML (redirect page)
+      if (text.trim().startsWith('<') || text.includes('<HTML>') || text.includes('<!DOCTYPE')) {
+        return {
+          success: false,
+          error: 'Google Script returned HTML instead of JSON. Please check the script deployment settings.'
+        };
+      }
+
+      const result = JSON.parse(text);
+      
+      if (result.error) {
+        return {
+          success: false,
+          error: result.error
+        };
+      }
+
+      if (result.data !== undefined) {
+        return {
+          success: true,
+          data: result
+        };
+      }
+
+      return {
+        success: false,
+        error: 'Invalid response format from Google Script'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  // Client-side: use API route proxy
+  return fetchFromGoogleScript(scriptUrl, 'Pesanan', 'GET');
 }
 
 export async function saveKantinToSuperAdminSheet(kantin: any) {

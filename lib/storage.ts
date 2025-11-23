@@ -27,6 +27,19 @@ export const storage = {
       const transactions = storage.transactions.getAll();
       return transactions.find((t) => t.code.toLowerCase() === code.toLowerCase());
     },
+    replaceAll: (transactions: Transaction[]): void => {
+      if (typeof window === 'undefined') return;
+      localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(transactions));
+    },
+    replaceByKantinId: (kantinId: string, transactions: Transaction[]): void => {
+      if (typeof window === 'undefined') return;
+      const allTransactions = storage.transactions.getAll();
+      // Keep transactions from other kantins
+      const otherKantinTransactions = allTransactions.filter((t) => t.kantinId !== kantinId);
+      // Combine with new transactions from this kantin
+      const updatedTransactions = [...otherKantinTransactions, ...transactions];
+      localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(updatedTransactions));
+    },
   },
   deliveryLocation: {
     get: (): DeliveryLocation | null => {

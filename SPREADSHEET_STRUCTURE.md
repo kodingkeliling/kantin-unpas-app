@@ -35,7 +35,7 @@ createdAt: 2024-01-15T10:30:00.000Z
 
 Setiap toko memiliki spreadsheet sendiri dengan URL yang disimpan di Super Admin Spreadsheet.
 
-### Sheet: "Transactions"
+### Sheet: "Pesanan"
 
 Sheet ini menyimpan semua transaksi/pesanan untuk toko tersebut.
 
@@ -135,8 +135,8 @@ Script ini harus bisa:
 ## 4. Google Apps Script untuk Spreadsheet Tiap Toko
 
 Script ini harus bisa:
-- **GET** `/api?sheet=Transactions` - Mengambil semua transaksi
-- **POST** `/api?sheet=Transactions` - Menambah transaksi baru
+- **GET** `/api?sheet=Pesanan` - Mengambil semua transaksi
+- **POST** `/api?sheet=Pesanan` - Menambah transaksi baru
 
 **Format Request POST:**
 ```json
@@ -280,9 +280,9 @@ function doPost(e) {
 }
 ```
 
-### Untuk Spreadsheet Tiap Toko (Sheet: Transactions)
+### Untuk Spreadsheet Tiap Toko (Sheet: Pesanan)
 
-Gunakan script yang sama seperti di atas, hanya ganti sheet name menjadi "Transactions".
+Gunakan script yang sama seperti di atas, hanya ganti sheet name menjadi "Pesanan".
 
 ---
 
@@ -298,8 +298,8 @@ Gunakan script yang sama seperti di atas, hanya ganti sheet name menjadi "Transa
 
 ### Spreadsheet Tiap Kantin:
 - [ ] Buat Google Spreadsheet baru untuk setiap toko
-- [ ] Buat sheet dengan nama "Transactions"
-- [ ] Tambahkan header: id, code, kantinId, kantinName, items, total, paymentProof, status, createdAt
+- [ ] Buat sheet dengan nama "Pesanan"
+- [ ] Tambahkan header: id, code, kantinId, kantinName, items, total, paymentProof, deliveryLocation, status, createdAt
 - [ ] Buat Google Apps Script dengan template di atas
 - [ ] Deploy sebagai Web App (Anyone can access)
 - [ ] Copy URL ke Super Admin Dashboard saat membuat/edit toko
@@ -331,7 +331,7 @@ Row 3 (Data):
 kantin-2 | Kantin Barat | Menu barat dan minuman | owner-2 | admin123 | https://script.google.com/macros/s/DEF456/exec | 2024-01-15T11:00:00.000Z
 ```
 
-### Kantin - Sheet "Transactions"
+### Kantin - Sheet "Pesanan"
 ```
 Row 1 (Header):
 id | code | kantinId | kantinName | items | total | paymentProof | status | createdAt

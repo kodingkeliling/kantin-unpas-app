@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { KantinAccount } from '@/lib/kantin';
+import { KantinAccount, OperatingHours, getDayName, getDayNumber } from '@/lib/kantin';
 import { getAccessToken } from '@/lib/googleAuth';
 import GoogleDriveConnect from '@/components/GoogleDriveConnect';
 import { showAlert } from '@/lib/swal';
@@ -22,6 +22,8 @@ interface KantinFormModalProps {
     whatsapp: string;
     coverImage: string;
     qrisImage: string;
+    isOpen: boolean;
+    operatingHours: OperatingHours[];
   }) => void;
   isSubmitting?: boolean;
 }
@@ -43,6 +45,16 @@ export default function KantinFormModal({
     whatsapp: '',
     coverImage: '',
     qrisImage: '',
+    isOpen: true,
+    operatingHours: [
+      { day: 1, open: '08:00', close: '17:00', isOpen: true }, // Senin
+      { day: 2, open: '08:00', close: '17:00', isOpen: true }, // Selasa
+      { day: 3, open: '08:00', close: '17:00', isOpen: true }, // Rabu
+      { day: 4, open: '08:00', close: '17:00', isOpen: true }, // Kamis
+      { day: 5, open: '08:00', close: '17:00', isOpen: true }, // Jumat
+      { day: 6, open: '08:00', close: '17:00', isOpen: false }, // Sabtu
+      { day: 7, open: '08:00', close: '17:00', isOpen: false }, // Minggu
+    ] as OperatingHours[],
   });
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
   const [qrisImagePreview, setQrisImagePreview] = useState<string | null>(null);
@@ -58,6 +70,40 @@ export default function KantinFormModal({
     if (isOpen) {
       checkGoogleDriveConnection();
       if (editingKantin) {
+        const defaultHours: OperatingHours[] = [
+          { day: 1, open: '08:00', close: '17:00', isOpen: true }, // Senin
+          { day: 2, open: '08:00', close: '17:00', isOpen: true }, // Selasa
+          { day: 3, open: '08:00', close: '17:00', isOpen: true }, // Rabu
+          { day: 4, open: '08:00', close: '17:00', isOpen: true }, // Kamis
+          { day: 5, open: '08:00', close: '17:00', isOpen: true }, // Jumat
+          { day: 6, open: '08:00', close: '17:00', isOpen: false }, // Sabtu
+          { day: 7, open: '08:00', close: '17:00', isOpen: false }, // Minggu
+        ];
+        // Parse operatingHours from JSON string to array if needed
+        let operatingHours: OperatingHours[] = defaultHours;
+        if (editingKantin.operatingHours) {
+          if (typeof editingKantin.operatingHours === 'string') {
+            // If it's a string, try to parse it as JSON
+            try {
+              const parsed = JSON.parse(editingKantin.operatingHours);
+              if (Array.isArray(parsed)) {
+                operatingHours = parsed;
+              }
+            } catch {
+              // If parsing fails, use default hours
+              operatingHours = defaultHours;
+            }
+          } else if (Array.isArray(editingKantin.operatingHours)) {
+            // If it's already an array, use it directly
+            operatingHours = editingKantin.operatingHours;
+          }
+        }
+        
+        // Convert day from string to number if needed
+        const convertedHours = operatingHours.map(h => ({
+          ...h,
+          day: typeof h.day === 'string' ? getDayNumber(h.day) : h.day,
+        }));
         setFormData({
           name: editingKantin.name,
           description: editingKantin.description || '',
@@ -68,6 +114,8 @@ export default function KantinFormModal({
           whatsapp: editingKantin.whatsapp || '',
           coverImage: editingKantin.coverImage || '',
           qrisImage: editingKantin.qrisImage || '',
+          isOpen: editingKantin.isOpen ?? true,
+          operatingHours: convertedHours,
         });
         const coverUrl = editingKantin.coverImage || '';
         const qrisUrl = editingKantin.qrisImage || '';
@@ -134,7 +182,28 @@ export default function KantinFormModal({
   };
 
   const resetForm = () => {
-    setFormData({ name: '', description: '', password: '', spreadsheetApiUrl: '', spreadsheetUrl: '', email: '', whatsapp: '', coverImage: '', qrisImage: '' });
+    const defaultHours: OperatingHours[] = [
+      { day: 1, open: '08:00', close: '17:00', isOpen: true }, // Senin
+      { day: 2, open: '08:00', close: '17:00', isOpen: true }, // Selasa
+      { day: 3, open: '08:00', close: '17:00', isOpen: true }, // Rabu
+      { day: 4, open: '08:00', close: '17:00', isOpen: true }, // Kamis
+      { day: 5, open: '08:00', close: '17:00', isOpen: true }, // Jumat
+      { day: 6, open: '08:00', close: '17:00', isOpen: false }, // Sabtu
+      { day: 7, open: '08:00', close: '17:00', isOpen: false }, // Minggu
+    ];
+    setFormData({ 
+      name: '', 
+      description: '', 
+      password: '', 
+      spreadsheetApiUrl: '', 
+      spreadsheetUrl: '', 
+      email: '', 
+      whatsapp: '', 
+      coverImage: '', 
+      qrisImage: '',
+      isOpen: true,
+      operatingHours: defaultHours,
+    });
     setCoverImagePreview(null);
     setQrisImagePreview(null);
     setCoverImageMethod('upload');
@@ -469,6 +538,86 @@ export default function KantinFormModal({
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Nomor WhatsApp untuk kontak kantin (opsional)
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-gray-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Status Kantin
+                </label>
+                <div className="flex items-center gap-4">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.isOpen}
+                      onChange={(e) => setFormData({ ...formData, isOpen: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-unpas-gold/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-unpas-gold"></div>
+                    <span className="ml-3 text-sm font-medium text-gray-700">
+                      {formData.isOpen ? 'Buka' : 'Tutup'}
+                    </span>
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Status buka/tutup kantin saat ini
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Jam Operasional
+                </label>
+                <div className="space-y-2">
+                  {formData.operatingHours.map((hour, index) => (
+                    <div key={hour.day} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2 min-w-[100px]">
+                        <input
+                          type="checkbox"
+                          checked={hour.isOpen}
+                          onChange={(e) => {
+                            const updated = [...formData.operatingHours];
+                            updated[index] = { ...hour, isOpen: e.target.checked };
+                            setFormData({ ...formData, operatingHours: updated });
+                          }}
+                          className="w-4 h-4 text-unpas-gold border-gray-300 rounded focus:ring-unpas-gold"
+                        />
+                        <span className="text-sm font-medium text-gray-700 capitalize min-w-[70px]">
+                          {getDayName(hour.day)}
+                        </span>
+                      </div>
+                      {hour.isOpen ? (
+                        <>
+                          <input
+                            type="time"
+                            value={hour.open}
+                            onChange={(e) => {
+                              const updated = [...formData.operatingHours];
+                              updated[index] = { ...hour, open: e.target.value };
+                              setFormData({ ...formData, operatingHours: updated });
+                            }}
+                            className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-unpas-gold"
+                          />
+                          <span className="text-gray-500">-</span>
+                          <input
+                            type="time"
+                            value={hour.close}
+                            onChange={(e) => {
+                              const updated = [...formData.operatingHours];
+                              updated[index] = { ...hour, close: e.target.value };
+                              setFormData({ ...formData, operatingHours: updated });
+                            }}
+                            className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-unpas-gold"
+                          />
+                        </>
+                      ) : (
+                        <span className="text-sm text-gray-400">Tutup</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Atur jam operasional untuk setiap hari
                 </p>
               </div>
               
