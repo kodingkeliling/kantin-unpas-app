@@ -53,7 +53,7 @@ export default function KantinDetailPage() {
   const loadMenus = async (spreadsheetApiUrl: string) => {
     setIsLoadingMenus(true);
     try {
-      const response = await fetch(`/api/google-script?sheet=Menus&scriptUrl=${encodeURIComponent(spreadsheetApiUrl)}`);
+      const response = await fetch(`/api/google-script?sheet=Menu&scriptUrl=${encodeURIComponent(spreadsheetApiUrl)}`);
       const result = await response.json();
       
       // Handle both response formats: {success: true, data: [...]} or {data: [...]}

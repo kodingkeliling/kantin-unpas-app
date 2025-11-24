@@ -53,7 +53,7 @@ export default function KantinMenuTab({
           },
           body: JSON.stringify({
             scriptUrl: kantinData.spreadsheetApiUrl,
-            sheet: 'Menus',
+            sheet: 'Menu',
             action: 'update',
             id: editingMenu.id,
             data: updatedMenu,
@@ -86,7 +86,7 @@ export default function KantinMenuTab({
           },
           body: JSON.stringify({
             scriptUrl: kantinData.spreadsheetApiUrl,
-            sheet: 'Menus',
+            sheet: 'Menu',
             action: 'create',
             data: newMenu,
           }),
@@ -142,7 +142,7 @@ export default function KantinMenuTab({
         },
         body: JSON.stringify({
           scriptUrl: kantinData.spreadsheetApiUrl,
-          sheet: 'Menus',
+          sheet: 'Menu',
           action: 'delete',
           id: id,
         }),

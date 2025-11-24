@@ -149,7 +149,7 @@ async function updateTransactionStatusInSheet(scriptUrl: string, transactionId: 
 
 async function fetchMenusFromSheet(scriptUrl: string) {
   try {
-    const url = `${scriptUrl}?sheet=${encodeURIComponent('Menus')}&t=${Date.now()}&r=${Math.random().toString(36).substring(7)}`;
+    const url = `${scriptUrl}?sheet=${encodeURIComponent('Menu')}&t=${Date.now()}&r=${Math.random().toString(36).substring(7)}`;
     
     const response = await fetch(url, {
       method: 'GET',
@@ -188,7 +188,7 @@ async function fetchMenusFromSheet(scriptUrl: string) {
 
 async function updateMenuQuantityInSheet(scriptUrl: string, menuId: string, newQuantity: number) {
   try {
-    const url = `${scriptUrl}?sheet=${encodeURIComponent('Menus')}&t=${Date.now()}&r=${Math.random().toString(36).substring(7)}`;
+    const url = `${scriptUrl}?sheet=${encodeURIComponent('Menu')}&t=${Date.now()}&r=${Math.random().toString(36).substring(7)}`;
     
     const response = await fetch(url, {
       method: 'POST',

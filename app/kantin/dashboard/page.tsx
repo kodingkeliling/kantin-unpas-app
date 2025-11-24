@@ -117,7 +117,7 @@ function KantinDashboardContent() {
   const loadMenus = useCallback(async (spreadsheetApiUrl: string) => {
     setIsLoadingMenus(true);
     try {
-      const response = await fetch(`/api/google-script?sheet=Menus&scriptUrl=${encodeURIComponent(spreadsheetApiUrl)}`);
+      const response = await fetch(`/api/google-script?sheet=Menu&scriptUrl=${encodeURIComponent(spreadsheetApiUrl)}`);
       const result = await response.json();
       
       console.log('API Response:', result);
@@ -164,7 +164,7 @@ function KantinDashboardContent() {
         });
         // Replace all menus in state with fresh data from API
         setMenus(parsedMenus);
-        console.log('Menus loaded successfully:', parsedMenus.length, parsedMenus);
+        console.log('Menu loaded successfully:', parsedMenus.length, parsedMenus);
       } else {
         // If no menus found, set empty array
         setMenus([]);
