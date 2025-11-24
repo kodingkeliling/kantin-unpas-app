@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Header from '@/components/Header';
 import ScanQR from '@/components/ScanQR';
 import Link from 'next/link';
@@ -71,7 +72,17 @@ export default function Home() {
               </ol>
             </div>
             <div className="md:order-1">
-              <ScanQR />
+              <Suspense fallback={
+                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+                  <div className="animate-pulse">
+                    <div className="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
+                    <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                    <div className="h-48 bg-gray-200 rounded"></div>
+                  </div>
+                </div>
+              }>
+                <ScanQR />
+              </Suspense>
             </div>
           </div>
 
