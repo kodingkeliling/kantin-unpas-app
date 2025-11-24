@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "E-Kantin UNPAS",
-  description: "Platform pemesanan makanan untuk kantin UNPAS",
+  title: "E-Kantin UNPAS x Koding Keliling",
+  description: "Platform pemesanan makanan untuk kantin UNPAS - Powered by Koding Keliling",
 };
 
 export default function RootLayout({
