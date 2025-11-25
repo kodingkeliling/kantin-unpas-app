@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import Header from '@/components/Header';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -83,7 +82,7 @@ export default function KantinLoginPage() {
 
     try {
       // Hit API route (server-side, password tidak terlihat di network browser)
-      const response = await fetch('/api/auth/admin/login', {
+      const response = await fetch('/api/auth/superadmin/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
