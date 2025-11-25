@@ -99,7 +99,6 @@ function KantinDashboardContent() {
         });
         // Replace all transactions in state with fresh data from API
         setTransactions(parsedTransactions);
-        console.log('Transactions loaded:', parsedTransactions.length);
       } else {
         setTransactions([]);
         if (result.success === false) {
@@ -120,8 +119,6 @@ function KantinDashboardContent() {
       const response = await fetch(`/api/google-script?sheet=Menu&scriptUrl=${encodeURIComponent(spreadsheetApiUrl)}`);
       const result = await response.json();
       
-      console.log('API Response:', result);
-      
       // Handle both response formats: {success: true, data: [...]} or {data: [...]}
       // Google Script returns {data: [...]} directly
       let menuData: any[] = [];
@@ -136,8 +133,6 @@ function KantinDashboardContent() {
         // Format: {success: true, data: [...]}
         menuData = Array.isArray(result.data) ? result.data : [];
       }
-      
-      console.log('Parsed menuData:', menuData);
       
       if (menuData.length > 0) {
         // Parse data from spreadsheet
@@ -164,7 +159,6 @@ function KantinDashboardContent() {
         });
         // Replace all menus in state with fresh data from API
         setMenus(parsedMenus);
-        console.log('Menu loaded successfully:', parsedMenus.length, parsedMenus);
       } else {
         // If no menus found, set empty array
         setMenus([]);
@@ -190,13 +184,6 @@ function KantinDashboardContent() {
 
       // Set kantin data from verified auth
       const kantin = verifiedAuth as unknown as KantinAccount;
-      
-      // Debug: Log spreadsheetApiUrl to verify it's coming from /me endpoint
-      console.log('Kantin data from /me:', {
-        id: kantin.id,
-        name: kantin.name,
-        spreadsheetApiUrl: kantin.spreadsheetApiUrl,
-      });
       
       if (!kantin.spreadsheetApiUrl) {
         console.error('spreadsheetApiUrl tidak ditemukan di response /me');
