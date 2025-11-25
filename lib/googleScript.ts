@@ -1,5 +1,76 @@
 const SUPER_ADMIN_SCRIPT_URL = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || '';
 
+interface OperatingHoursPayload {
+  day: number;
+  open: string;
+  close: string;
+  isOpen: boolean;
+}
+
+const FALLBACK_ACCEPT_LANGUAGE = 'id-ID';
+
+function getAcceptLanguageHeaderValue(): string {
+  if (typeof document !== 'undefined') {
+    const cookies = document.cookie.split(';').map((cookie) => cookie.trim());
+    const targetCookie = cookies.find((cookie) => cookie.startsWith('cookies.anarise_language='));
+    if (targetCookie) {
+      const [, value] = targetCookie.split('=');
+      if (value) {
+        try {
+          return decodeURIComponent(value);
+        } catch {
+          return value;
+        }
+      }
+    }
+  }
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    return navigator.language;
+  }
+  return FALLBACK_ACCEPT_LANGUAGE;
+}
+
+function sanitizeOperatingHours(hours: unknown): OperatingHoursPayload[] {
+  if (!Array.isArray(hours)) {
+    return [];
+  }
+
+  return hours
+    .map((hour) => {
+      if (typeof hour !== 'object' || hour === null) {
+        return null;
+      }
+      const rawHour = hour as Record<string, unknown>;
+      const numericDay = typeof rawHour.day === 'number' ? rawHour.day : parseInt(String(rawHour.day), 10);
+      if (!Number.isFinite(numericDay)) {
+        return null;
+      }
+      return {
+        day: Math.min(Math.max(numericDay, 1), 7),
+        open: typeof rawHour.open === 'string' && rawHour.open.trim() ? rawHour.open : '08:00',
+        close: typeof rawHour.close === 'string' && rawHour.close.trim() ? rawHour.close : '17:00',
+        isOpen: Boolean(rawHour.isOpen),
+      } as OperatingHoursPayload;
+    })
+    .filter((hour): hour is OperatingHoursPayload => Boolean(hour));
+}
+
+function normalizeKantinPayload<T extends object>(kantin: T) {
+  if (!kantin || typeof kantin !== 'object') {
+    return kantin;
+  }
+
+  const normalized = { ...kantin } as T & { operatingHours?: unknown };
+  if (Array.isArray(normalized.operatingHours)) {
+    normalized.operatingHours = JSON.stringify(sanitizeOperatingHours(normalized.operatingHours));
+  } else if (typeof normalized.operatingHours === 'string') {
+    normalized.operatingHours = normalized.operatingHours.trim() || '[]';
+  } else {
+    normalized.operatingHours = '[]';
+  }
+  return normalized;
+}
+
 export interface ApiResponse<T> {
   success?: boolean;
   data?: {
@@ -13,7 +84,7 @@ export async function fetchFromGoogleScript<T>(
   scriptUrl: string,
   sheetName: string,
   method: 'GET' | 'POST' = 'GET',
-  data?: any
+  data?: unknown
 ): Promise<ApiResponse<T>> {
   try {
     if (!scriptUrl) {
@@ -30,6 +101,7 @@ export async function fetchFromGoogleScript<T>(
       method,
       headers: {
         'Content-Type': 'application/json',
+        'Accept-Language': getAcceptLanguageHeaderValue(),
       },
     };
 
@@ -132,7 +204,7 @@ export async function fetchFromGoogleScript<T>(
   }
 }
 
-export async function saveTransactionToSheet(scriptUrl: string, transaction: any, isServerSide = false) {
+export async function saveTransactionToSheet(scriptUrl: string, transaction: unknown, isServerSide = false) {
   // If called from server-side, use direct fetch to Google Script
   if (isServerSide) {
     try {
@@ -285,16 +357,17 @@ export async function getTransactionsFromSheet(scriptUrl: string, isServerSide =
   return fetchFromGoogleScript(scriptUrl, 'Pesanan', 'GET');
 }
 
-export async function saveKantinToSuperAdminSheet(kantin: any) {
+export async function saveKantinToSuperAdminSheet<T extends object>(kantin: T) {
   if (!SUPER_ADMIN_SCRIPT_URL) {
     return {
       success: false,
       error: 'Super Admin Google Script URL is not configured'
     };
   }
+  const payload = normalizeKantinPayload(kantin);
   return fetchFromGoogleScript(SUPER_ADMIN_SCRIPT_URL, 'AkunKantin', 'POST', {
     action: 'create',
-    data: kantin
+    data: payload
   });
 }
 
@@ -309,17 +382,18 @@ export async function getKantinsFromSuperAdminSheet() {
   return fetchFromGoogleScript(SUPER_ADMIN_SCRIPT_URL, 'AkunKantin', 'GET');
 }
 
-export async function updateKantinInSuperAdminSheet(kantinId: string, kantin: any) {
+export async function updateKantinInSuperAdminSheet<T extends object>(kantinId: string, kantin: T) {
   if (!SUPER_ADMIN_SCRIPT_URL) {
     return {
       success: false,
       error: 'Super Admin Google Script URL is not configured'
     };
   }
+  const payload = normalizeKantinPayload(kantin);
   return fetchFromGoogleScript(SUPER_ADMIN_SCRIPT_URL, 'AkunKantin', 'POST', {
     action: 'update',
     id: kantinId,
-    data: kantin
+    data: payload
   });
 }
 

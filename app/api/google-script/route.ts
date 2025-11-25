@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const SUPER_ADMIN_SCRIPT_URL = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || '';
+const FALLBACK_ACCEPT_LANGUAGE = 'id-ID';
+
+const getAcceptLanguage = (request: NextRequest) =>
+  request.cookies.get('cookies.anarise_language')?.value || FALLBACK_ACCEPT_LANGUAGE;
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,6 +40,7 @@ export async function GET(request: NextRequest) {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Accept-Language': getAcceptLanguage(request),
       },
       redirect: 'follow',
     });
@@ -115,6 +120,7 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept-Language': getAcceptLanguage(request),
       },
       body: JSON.stringify(payloadWithEmail),
       redirect: 'follow',
